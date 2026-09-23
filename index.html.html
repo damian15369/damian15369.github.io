@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bordados ADN - Calculadora</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Tailwind slate-50 */
+        }
+        
+        /* Custom Tooltip CSS */
+        .tooltip-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.5rem;
+            cursor: help;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 250px;
+            background-color: #1e293b; /* slate-800 */
+            color: #fff;
+            text-align: left;
+            border-radius: 0.375rem; /* rounded-md */
+            padding: 0.75rem;
+            position: absolute;
+            z-index: 50;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.75rem; /* text-xs */
+            font-weight: 400;
+            line-height: 1.25rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            pointer-events: none; /* Prevent tooltip from blocking clicks */
+        }
+
+        /* Tooltip arrow */
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1e293b transparent transparent transparent;
+        }
+
+        .tooltip-container:hover .tooltip-text,
+        .tooltip-container:active .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Hide number input arrows (spinners) for a cleaner look */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        /* Estilos específicos para Impresión / Guardado de PDF */
+        @media print {
+            /* Ocultar elementos que no deben salir en el PDF */
+            header, 
+            #panel-inputs, 
+            #btn-imprimir {
+                display: none !important;
+            }
+
+            /* Resetear fondos y espacios del cuerpo de la página */
+            body, main {
+                background-color: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                min-height: auto !important;
+            }
+
+            /* Romper el flexbox principal para que la tabla use todo el ancho */
+            .flex-col.lg\:flex-row {
+                display: block !important;
+            }
+
+            /* Forzar al contenedor de resultados a usar todo el espacio */
+            #panel-resultados {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                display: block !important;
+            }
+
+            /* ELIMINAR EL EFECTO STICKY: Esta es la clave para que no se recorte */
+            #panel-resultados > div {
+                position: static !important;
+                top: auto !important;
+            }
+
+            /* ELIMINAR EL OVERFLOW: Evita que el contenedor oculte partes de la tabla */
+            .overflow-x-auto, .overflow-hidden {
+                overflow: visible !important;
+            }
+
+            /* Forzar a los navegadores a imprimir los colores de fondo oscuros */
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Configurar márgenes de la hoja de impresión */
+            @page {
+                margin: 1.5cm;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen pb-12">
+
+    <header class="bg-black text-white py-6 shadow-md mb-8 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tight">Bordados ADN</h1>
+                    <p class="text-slate-400 mt-1 text-sm font-medium">Calculadora de Costos y Precios para Taller de Bordado</p>
+                </div>
+                <svg class="w-10 h-10 text-slate-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z"></path></svg>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col lg:flex-row gap-8">
+            
+            <!-- COLUMN 1: Inputs (Left Side) -->
+            <div id="panel-inputs" class="w-full lg:w-2/3 space-y-6">
+                
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 rounded-t-xl">
+                        <h2 class="text-lg font-semibold text-slate-800">1. Datos del Lote</h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Cantidad de prendas
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Número total de prendas a bordar en este pedido. Define cómo se dividen los costos fijos y únicos.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <input type="number" id="cantidadPrendas" value="1" min="1" class="focus:ring-slate-800 focus:border-slate-800 block w-full sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="Ej: 50" oninput="calcular()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 rounded-t-xl">
+                        <h2 class="text-lg font-semibold text-slate-800">2. Costos de Materiales (Por 1 Prenda)</h2>
+                        <p class="text-xs text-slate-500 mt-1">Ingresa el costo por una sola pieza. La app lo multiplicará por el lote.</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <!-- Prenda en blanco -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Prenda en blanco
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Costo de compra de la prenda. Si el cliente la trae, déjalo en blanco.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoPrenda" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+
+                            <!-- Hilo -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Hilo
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Estimación del costo de hilo por diseño. Ej: Si un cono de $100 rinde 100 diseños, el costo es $1.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoHilo" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+
+                            <!-- Entretela / Estabilizador -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Entretela / Estabilizador
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Costo del trozo de entretela (pellón) usado debajo del bordado.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoEntretela" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+
+                            <!-- Agujas y Desgaste -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Agujas / Desgaste
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Una pequeña fracción para cubrir rotura de agujas, aceite o bobinas (ej. $0.50 a $2.00 por prenda).</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoAgujas" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+
+                            <!-- Empaques -->
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Empaques y presentación
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Costo de bolsas, etiquetas, cajas o papel que usas por cada prenda individual.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm sm:w-1/2 pr-0 sm:pr-3">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoEmpaque" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 rounded-t-xl">
+                        <h2 class="text-lg font-semibold text-slate-800">3. Costos Operativos (Prorrateados por 1 Prenda)</h2>
+                        <p class="text-xs text-slate-500 mt-1">Calcula tu costo mensual y divídelo entre las prendas que haces al mes.</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <!-- Electricidad -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Electricidad
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Fracción del recibo de luz que le toca a una sola prenda.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoLuz" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+
+                            <!-- Renta -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Renta / Espacio
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Incluso si trabajas en casa, debes cobrar una fracción de renta por prenda para ser rentable.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoRenta" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+                            
+                            <!-- Mantenimiento -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Mantenimiento de máquina
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Ahorro necesario por prenda para pagar servicios técnicos, refacciones y lubricantes.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoMantenimiento" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" oninput="calcular()">
+                                </div>
+                            </div>
+
+                            <!-- Internet / Software -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Internet / Software
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Costo por prenda de tu conexión a internet o mensualidades de software de bordado.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoInternet" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" oninput="calcular()">
+                                </div>
+                            </div>
+
+                            <!-- Publicidad / Marketing -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Publicidad / Marketing
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Inversión en anuncios (Facebook Ads), tarjetas, volantes o promociones, dividida por prenda.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoPublicidad" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" oninput="calcular()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 rounded-t-xl">
+                        <h2 class="text-lg font-semibold text-slate-800">4. Costos Únicos, Mano de Obra y Merma</h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            
+                            <!-- Picaje -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Costo de Picaje (Total Lote)
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Se cobra UNA SOLA VEZ por todo el lote. Es el costo de crear el archivo matriz.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoPicaje" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+
+                            <!-- Muestreo -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Costo de Muestra (Total Lote)
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Material y tiempo gastado en hacer la primera prueba en tela suelta antes de bordar.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoMuestra" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+                            
+                            <!-- Mano de obra -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Mano de Obra (Por 1 prenda)
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Tu sueldo o el del operador por el tiempo que toma preparar, enmarcar, bordar y limpiar una prenda.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="costoManoObra" min="0" step="0.01" class="focus:ring-slate-800 focus:border-slate-800 block w-full pl-7 sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="0.00" oninput="calcular()">
+                                </div>
+                            </div>
+
+                            <!-- Merma -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Porcentaje de Merma (%)
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Porcentaje extra para cubrir prendas arruinadas. Un estándar es 3% al 5%.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <input type="number" id="porcentajeMerma" min="0" step="1" class="focus:ring-slate-800 focus:border-slate-800 block w-full sm:text-sm border-slate-300 rounded-md py-2 px-3 border pr-8" placeholder="Ej: 3" oninput="calcular()">
+                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 rounded-t-xl">
+                        <h2 class="text-lg font-semibold text-slate-800">5. Margen de Ganancia</h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Tipo de Ganancia</label>
+                                <select id="tipoGanancia" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-slate-800 focus:border-slate-800 sm:text-sm rounded-md border" onchange="toggleGananciaLabel(); calcular();">
+                                    <option value="porcentaje">Ganancia por Porcentaje (%)</option>
+                                    <option value="fija_prenda">Ganancia Fija en Dinero (por 1 prenda)</option>
+                                    <option value="fija_lote">Ganancia Fija en Dinero (Total Lote)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label id="labelValorGanancia" class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Porcentaje Deseado (%)
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Esta es la ganancia NETA para el negocio. Un 30% a 50% es estándar.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div id="simboloGananciaIzq" class="hidden absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">$</span>
+                                    </div>
+                                    <input type="number" id="valorGanancia" min="0" step="1" class="focus:ring-slate-800 focus:border-slate-800 block w-full sm:text-sm border-slate-300 rounded-md py-2 px-3 border" placeholder="Ej: 40" oninput="calcular()">
+                                    <div id="simboloGananciaDer" class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Impuestos -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 rounded-t-xl">
+                        <h2 class="text-lg font-semibold text-slate-800">6. Impuestos</h2>
+                        <p class="text-xs text-slate-500 mt-1">Aplica IVA u otros impuestos (Opcional).</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 flex items-center">
+                                    Impuesto (Ej: IVA %)
+                                    <div class="tooltip-container">
+                                        <svg class="w-4 h-4 text-slate-400 hover:text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                        <span class="tooltip-text">Porcentaje extra a cobrar al cliente. Si no facturas o el precio ya lo debe incluir de tu lado, déjalo en blanco.</span>
+                                    </div>
+                                </label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <input type="number" id="porcentajeImpuestos" min="0" step="1" class="focus:ring-slate-800 focus:border-slate-800 block w-full sm:text-sm border-slate-300 rounded-md py-2 px-3 border pr-8" placeholder="Ej: 16" oninput="calcular()">
+                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        <span class="text-slate-500 sm:text-sm">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- COLUMN 2: Results -->
+            <div id="panel-resultados" class="w-full lg:w-1/3">
+                <div class="sticky top-6 space-y-6">
+                    
+                    <div class="bg-slate-900 rounded-xl shadow-lg text-white border border-slate-800 overflow-hidden">
+                        <div class="px-6 py-5 border-b border-slate-800 bg-black flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <h2 class="text-xl font-bold text-white">Resumen de Cotización</h2>
+                            </div>
+                            <span class="px-3 py-1 bg-slate-800 text-slate-300 border border-slate-700 rounded-full text-xs font-bold tracking-wide uppercase" id="resTotalBadge">1 prenda</span>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-900 text-slate-400 text-xs uppercase tracking-wider">
+                                        <th class="p-4 font-semibold whitespace-nowrap w-2/5">Concepto</th>
+                                        <th class="p-4 font-semibold text-right whitespace-nowrap border-l border-slate-800 w-3/10">Por 1 Prenda</th>
+                                        <th class="p-4 font-semibold text-right whitespace-nowrap border-l border-slate-800 w-3/10">Lote Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800">
+                                    <!-- Fila Costos -->
+                                    <tr class="hover:bg-slate-800/50 transition-colors">
+                                        <td class="p-4">
+                                            <span class="block text-sm font-semibold text-slate-200">Costos e Inversión</span>
+                                            <span class="block text-[11px] text-slate-400 mt-0.5">Materiales, operativos y mano de obra</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle">
+                                            <span class="font-mono text-sm text-slate-300" id="resUnitCosto">$0.00</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle">
+                                            <span class="font-mono text-sm text-slate-300" id="resTotalCosto">$0.00</span>
+                                        </td>
+                                    </tr>
+                                    <!-- Fila Ganancia -->
+                                    <tr class="hover:bg-slate-800/50 transition-colors">
+                                        <td class="p-4">
+                                            <span class="block text-sm font-semibold text-white">Ganancia Neta</span>
+                                            <span class="block text-[11px] text-slate-400 mt-0.5">Tu utilidad libre por el trabajo</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle">
+                                            <span class="font-mono text-sm text-slate-200" id="resUnitGanancia">$0.00</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle">
+                                            <span class="font-mono text-sm text-slate-200" id="resTotalGanancia">$0.00</span>
+                                        </td>
+                                    </tr>
+                                    <!-- Fila Subtotal -->
+                                    <tr class="hover:bg-slate-800/50 transition-colors bg-slate-800/20">
+                                        <td class="p-4">
+                                            <span class="block text-sm font-semibold text-slate-300">Subtotal</span>
+                                            <span class="block text-[11px] text-slate-500 mt-0.5">Antes de impuestos</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle">
+                                            <span class="font-mono text-sm text-slate-300" id="resUnitSubtotal">$0.00</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle">
+                                            <span class="font-mono text-sm text-slate-300" id="resTotalSubtotal">$0.00</span>
+                                        </td>
+                                    </tr>
+                                    <!-- Fila Impuestos -->
+                                    <tr class="hover:bg-slate-800/50 transition-colors">
+                                        <td class="p-4">
+                                            <span class="block text-sm font-semibold text-slate-400">Impuestos</span>
+                                            <span class="block text-[11px] text-slate-500 mt-0.5" id="labelImpuestoPorcentaje">0% calculado</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle">
+                                            <span class="font-mono text-sm text-slate-400" id="resUnitImpuesto">$0.00</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle">
+                                            <span class="font-mono text-sm text-slate-400" id="resTotalImpuesto">$0.00</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <!-- Fila Precio Venta -->
+                                    <tr class="bg-black border-t-2 border-slate-800">
+                                        <td class="p-4">
+                                            <span class="block text-base font-bold text-white">PRECIO FINAL</span>
+                                            <span class="block text-[11px] text-slate-400 mt-0.5 uppercase tracking-wide">Monto a cobrar al cliente</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle">
+                                            <span class="block text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Por Pieza</span>
+                                            <span class="font-mono font-bold text-xl text-white" id="resUnitPrecio">$0.00</span>
+                                        </td>
+                                        <td class="p-4 text-right border-l border-slate-800 align-middle bg-slate-900/40">
+                                            <span class="block text-[10px] text-slate-500 mb-1 uppercase tracking-wider font-semibold">Todo el Lote</span>
+                                            <span class="font-mono font-bold text-2xl text-white drop-shadow-md" id="resTotalPrecio">$0.00</span>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="px-6 py-4 bg-black text-xs text-slate-500 text-center border-t border-slate-800">
+                            Cotización basada en costos, márgenes e impuestos indicados.
+                        </div>
+                    </div>
+                    
+                    <button id="btn-imprimir" onclick="window.print()" class="w-full bg-slate-900 border border-slate-800 text-white font-semibold py-3 px-4 rounded-lg shadow-sm hover:bg-black hover:border-slate-700 transition-colors flex justify-center items-center gap-2">
+                        <svg class="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        Imprimir / Guardar PDF
+                    </button>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Formatting function for currency
+        const formatter = new Intl.NumberFormat('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+        });
+
+        // Function to handle UI changes based on profit type selection
+        function toggleGananciaLabel() {
+            const tipo = document.getElementById('tipoGanancia').value;
+            const label = document.getElementById('labelValorGanancia');
+            const tooltipText = label.querySelector('.tooltip-text');
+            const simIzq = document.getElementById('simboloGananciaIzq');
+            const simDer = document.getElementById('simboloGananciaDer');
+            const inputVal = document.getElementById('valorGanancia');
+
+            if (tipo === 'porcentaje') {
+                label.childNodes[0].nodeValue = "Porcentaje Deseado (%) ";
+                tooltipText.innerText = "Calculado como 'Recargo' sobre el costo. Ej: 100% significa que ganarás exactamente lo mismo que te costó producirlo (cobras el doble).";
+                simIzq.classList.add('hidden');
+                simDer.classList.remove('hidden');
+                inputVal.classList.remove('pl-7');
+                inputVal.placeholder = "Ej: 40";
+            } else if (tipo === 'fija_prenda') {
+                label.childNodes[0].nodeValue = "Ganancia Fija por Prenda ($) ";
+                tooltipText.innerText = "Monto exacto en dinero que quieres ganar LIMPIO por cada prenda bordada.";
+                simIzq.classList.remove('hidden');
+                simDer.classList.add('hidden');
+                inputVal.classList.add('pl-7');
+                inputVal.placeholder = "0.00";
+            } else { // fija_lote
+                label.childNodes[0].nodeValue = "Ganancia Fija Total del Lote ($) ";
+                tooltipText.innerText = "Monto exacto en dinero que quieres ganar LIMPIO por todo el lote, sin importar cuántas prendas sean.";
+                simIzq.classList.remove('hidden');
+                simDer.classList.add('hidden');
+                inputVal.classList.add('pl-7');
+                inputVal.placeholder = "0.00";
+            }
+        }
+
+        // Helper to safely get float values from inputs
+        function getVal(id) {
+            const val = parseFloat(document.getElementById(id).value);
+            return isNaN(val) ? 0 : val;
+        }
+
+        // Main Calculation Function
+        function calcular() {
+            // 1. Datos del Lote
+            let cantidad = parseInt(document.getElementById('cantidadPrendas').value);
+            if (isNaN(cantidad) || cantidad < 1) cantidad = 1;
+            
+            // Update badge text
+            document.getElementById('resTotalBadge').innerText = cantidad + (cantidad === 1 ? " prenda" : " prendas");
+
+            // 2. Costos Unitarios Materiales
+            const cPrenda = getVal('costoPrenda');
+            const cHilo = getVal('costoHilo');
+            const cEntretela = getVal('costoEntretela');
+            const cAgujas = getVal('costoAgujas');
+            const cEmpaque = getVal('costoEmpaque');
+            const costoMaterialesUnitario = cPrenda + cHilo + cEntretela + cAgujas + cEmpaque;
+
+            // 3. Costos Operativos Unitarios
+            const cLuz = getVal('costoLuz');
+            const cRenta = getVal('costoRenta');
+            const cMantenimiento = getVal('costoMantenimiento');
+            const cInternet = getVal('costoInternet');
+            const cPublicidad = getVal('costoPublicidad');
+            const costoOperativoUnitario = cLuz + cRenta + cMantenimiento + cInternet + cPublicidad;
+
+            // Mano de obra (Unitario)
+            const cManoObraUnit = getVal('costoManoObra');
+
+            // Total Costo Directo Base por prenda
+            let costoBaseUnitario = costoMaterialesUnitario + costoOperativoUnitario + cManoObraUnit;
+
+            // Merma (Se aplica como un % extra de riesgo sobre el costo base de una prenda)
+            const pMerma = getVal('porcentajeMerma');
+            const costoMermaUnitario = costoBaseUnitario * (pMerma / 100);
+            
+            // Costo de Produccion Unitario (Sin picaje/muestra)
+            let costoProduccionUnitario = costoBaseUnitario + costoMermaUnitario;
+
+            // 4. Costos Únicos (Se dividen entre la cantidad para el análisis unitario)
+            const cPicajeTotal = getVal('costoPicaje');
+            const cMuestraTotal = getVal('costoMuestra');
+            const costosUnicosTotal = cPicajeTotal + cMuestraTotal;
+            
+            const costoUnicoPorPrenda = costosUnicosTotal / cantidad;
+
+            // Costo de Producción Real por 1 Prenda (incluyendo su parte proporcional del picaje)
+            const costoTotalUnitario = costoProduccionUnitario + costoUnicoPorPrenda;
+            
+            // Costo de Producción Total Lote
+            const costoTotalLote = (costoProduccionUnitario * cantidad) + costosUnicosTotal;
+
+            // 5. Cálculo de Ganancia y Subtotal
+            const tipoGanancia = document.getElementById('tipoGanancia').value;
+            const valorGanancia = getVal('valorGanancia');
+            
+            let gananciaTotalLote = 0;
+            let gananciaUnitaria = 0;
+            let subtotalLote = 0;
+            let subtotalUnitario = 0;
+
+            if (tipoGanancia === 'porcentaje') {
+                gananciaTotalLote = costoTotalLote * (valorGanancia / 100);
+                subtotalLote = costoTotalLote + gananciaTotalLote;
+                
+                gananciaUnitaria = costoTotalUnitario * (valorGanancia / 100);
+                subtotalUnitario = costoTotalUnitario + gananciaUnitaria;
+
+            } else if (tipoGanancia === 'fija_prenda') {
+                gananciaUnitaria = valorGanancia;
+                subtotalUnitario = costoTotalUnitario + gananciaUnitaria;
+                
+                gananciaTotalLote = gananciaUnitaria * cantidad;
+                subtotalLote = costoTotalLote + gananciaTotalLote;
+
+            } else if (tipoGanancia === 'fija_lote') {
+                gananciaTotalLote = valorGanancia;
+                subtotalLote = costoTotalLote + gananciaTotalLote;
+                
+                gananciaUnitaria = gananciaTotalLote / cantidad;
+                subtotalUnitario = subtotalLote / cantidad;
+            }
+
+            // 6. Impuestos
+            const pImpuestos = getVal('porcentajeImpuestos');
+            const impuestoUnitario = subtotalUnitario * (pImpuestos / 100);
+            const impuestoTotalLote = subtotalLote * (pImpuestos / 100);
+
+            const precioFinalUnitario = subtotalUnitario + impuestoUnitario;
+            const precioFinalLote = subtotalLote + impuestoTotalLote;
+
+            // 7. Actualizar UI (Unitario)
+            document.getElementById('resUnitCosto').innerText = formatter.format(costoTotalUnitario);
+            document.getElementById('resUnitGanancia').innerText = formatter.format(gananciaUnitaria);
+            document.getElementById('resUnitSubtotal').innerText = formatter.format(subtotalUnitario);
+            document.getElementById('resUnitImpuesto').innerText = formatter.format(impuestoUnitario);
+            document.getElementById('resUnitPrecio').innerText = formatter.format(precioFinalUnitario);
+
+            // 8. Actualizar UI (Lote Total)
+            document.getElementById('resTotalCosto').innerText = formatter.format(costoTotalLote);
+            document.getElementById('resTotalGanancia').innerText = formatter.format(gananciaTotalLote);
+            document.getElementById('resTotalSubtotal').innerText = formatter.format(subtotalLote);
+            document.getElementById('resTotalImpuesto').innerText = formatter.format(impuestoTotalLote);
+            document.getElementById('resTotalPrecio').innerText = formatter.format(precioFinalLote);
+
+            // Actualizar etiqueta de impuestos en la UI
+            document.getElementById('labelImpuestoPorcentaje').innerText = pImpuestos > 0 ? pImpuestos + "% calculado" : "No aplicados";
+        }
+
+        // Initialize calculation and events on page load
+        window.onload = function() {
+            calcular();
+
+            // BLOQUEO DE SCROLL EN INPUTS NUMÉRICOS
+            document.addEventListener('wheel', function(event) {
+                if (document.activeElement.type === 'number') {
+                    // Si el usuario usa la rueda del ratón y está en un campo de número, desenfocar (quitar cursor)
+                    document.activeElement.blur();
+                }
+            });
+        };
+    </script>
+</body>
+</html>
